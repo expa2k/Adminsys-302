@@ -27,11 +27,12 @@ sudo tee $ZONE_FILE > /dev/null <<EOL
         604800   ; Refresh
         86400    ; Retry
         2419200  ; Expire
-        604800   ; Negative Cache TTL
-);
-    IN  NS  ns.$DOMINIO.
-ns  IN  A   $IP_SERVIDOR
+        604800 ) ; Negative Cache TTL
+;
+@   IN  NS  ns.$DOMINIO.
+@   IN  A   $IP_SERVIDOR
 www IN  A   $IP_SERVIDOR
+ns  IN  A   $IP_SERVIDOR
 EOL
 
 echo "Verificando configuración de bind9"
