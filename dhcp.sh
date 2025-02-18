@@ -4,35 +4,28 @@
 sudo apt update
 sudo apt install -y isc-dhcp-server
 
-# Solicitar la interfaz de red
-read -p "Ingrese la interfaz de red (por defecto: eth0): " INTERFACE
-INTERFACE=${INTERFACE:-eth0}
-
-# Configurar la interfaz de red para el servidor DHCP
+# Detectar la interfaz de red con dirección IP en 192.168.x.x
+INTERFACE=$(ip -o -4 addr show | awk '$4 ~ /^192\.168\./ {print $2; exit}')
+echo "Usando la interfaz de red: $INTERFACE"
 echo "INTERFACESv4=\"$INTERFACE\"" | sudo tee /etc/default/isc-dhcp-server > /dev/null
 
-# Solicitar los parámetros de la red
-read -p "Ingrese la subred (ejemplo: 192.168.1.0): " SUBNET
-read -p "Ingrese la máscara de subred (ejemplo: 255.255.255.0): " NETMASK
-read -p "Ingrese la IP de la puerta de enlace (ejemplo: 192.168.1.1): " GATEWAY
-read -p "Ingrese el rango de IP inicial (ejemplo: 192.168.1.100): " RANGE_START
-read -p "Ingrese el rango de IP final (ejemplo: 192.168.1.200): " RANGE_END
+# Solicitar rango de IPs
+read -p "Ingrese la IP inicial del rango DHCP: " RANGE_START
+read -p "Ingrese la IP final del rango DHCP: " RANGE_END
 
-# Configurar el archivo dhcpd.conf
+# Configurar DHCP con valores predefinidos
 cat <<EOF | sudo tee /etc/dhcp/dhcpd.conf > /dev/null
 default-lease-time 600;
 max-lease-time 7200;
-option subnet-mask $NETMASK;
-option broadcast-address ${SUBNET%.*}.255;
-option routers $GATEWAY;
-option domain-name-servers 8.8.8.8, 8.8.4.4;
-subnet $SUBNET netmask $NETMASK {
+subnet 192.168.1.0 netmask 255.255.255.0 {
     range $RANGE_START $RANGE_END;
+    option routers 192.168.1.1;
+    option domain-name-servers 8.8.8.8, 8.8.4.4;
 }
 EOF
 
-# Reiniciar el servicio DHCP
+# Reiniciar y habilitar el servicio DHCP
 sudo systemctl restart isc-dhcp-server
 sudo systemctl enable isc-dhcp-server
 
-echo "Servidor DHCP configurado y en ejecución en la interfaz $INTERFACE."
+echo "Servidor DHCP configurado y ejecutándose en $INTERFACE con rango $RANGE_START - $RANGE_END."
