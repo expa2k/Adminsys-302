@@ -4,8 +4,27 @@
 sudo apt-get install -y isc-dhcp-server
 echo "ISC DHCP se instaló correctamente"
 
+# Función para validar la dirección IP
+validate_ip() {
+    local ip=$1
+    local regex='^([0-9]{1,3}\.){3}[0-9]{1,3}$'
+    if [[ $ip =~ $regex ]]; then
+        IFS='.' read -r -a octets <<< "$ip"
+        for octet in "${octets[@]}"; do
+            if (( octet < 0 || octet > 255 )); then
+                echo "IP inválida: fuera de rango"
+                exit 1
+            fi
+        done
+    else
+        echo "Formato de IP inválido"
+        exit 1
+    fi
+}
+
 # Solicitar la IP del servidor DHCP
 read -p "Ingrese la IP del servidor DHCP: " SERVER_IP
+validate_ip "$SERVER_IP"
 
 # Extraer la base de la IP (los tres primeros octetos)
 IFS='.' read -r o1 o2 o3 o4 <<< "$SERVER_IP"
@@ -37,7 +56,9 @@ echo "INTERFACESv4=\"enp0s8\"" | sudo tee /etc/default/isc-dhcp-server > /dev/nu
 
 # Solicitar rango de IPs para DHCP
 read -p "Ingrese la IP inicial del rango DHCP: " RANGE_START
+validate_ip "$RANGE_START"
 read -p "Ingrese la IP final del rango DHCP: " RANGE_END
+validate_ip "$RANGE_END"
 
 # Configurar DHCP
 cat <<EOF | sudo tee /etc/dhcp/dhcpd.conf > /dev/null
