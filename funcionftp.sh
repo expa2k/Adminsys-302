@@ -7,7 +7,21 @@ instalar_ftp() {
     sudo apt install -y vsftpd
     sudo systemctl enable vsftpd
     sudo systemctl start vsftpd
-    echo "Configuración básica aplicada."
+
+    # Configurar acceso anónimo solo a /srv/ftp/general
+    sudo bash -c 'cat > /etc/vsftpd.conf <<EOF
+anonymous_enable=YES
+local_enable=YES
+write_enable=YES
+anon_root=/srv/ftp/general
+anon_upload_enable=NO
+anon_mkdir_write_enable=NO
+anon_other_write_enable=NO
+chroot_local_user=YES
+EOF'
+    
+    sudo systemctl restart vsftpd
+    echo "Configuración aplicada."
 }
 
 # Función para crear grupos
@@ -30,28 +44,32 @@ agregar_usuario() {
         echo "Opción inválida."; return 1
     fi
 
+    # Crear usuario con su grupo
     sudo useradd -m -g "$group" -s /bin/bash "$username"
     sudo passwd "$username"
     
-    # Crear carpetas personales del usuario
+    # Crear carpetas y asignar permisos
     sudo mkdir -p /srv/ftp/usuarios/$username
     sudo chown "$username":"$group" /srv/ftp/usuarios/$username
     sudo chmod 770 /srv/ftp/usuarios/$username
-    
+
     echo "Usuario $username agregado al grupo $group."
 }
 
-# Función para configurar los directorios y montajes
+# Función para configurar directorios
 configurar_directorios() {
     echo "Configurando directorios para usuarios FTP..."
     sudo mkdir -p /srv/ftp/general /srv/ftp/grupos/reprobados /srv/ftp/grupos/recursadores /srv/ftp/usuarios
+    
     sudo chmod 777 /srv/ftp/general
     sudo chmod 770 /srv/ftp/grupos/reprobados
     sudo chmod 770 /srv/ftp/grupos/recursadores
-    
+
     for user in $(ls /srv/ftp/usuarios); do
         group=$(id -gn $user)
         sudo mkdir -p /home/$user/ftp/{mi_carpeta,mi_grupo,publica}
+        
+        # Montar carpetas correctamente
         sudo mount --bind /srv/ftp/usuarios/$user /home/$user/ftp/mi_carpeta
         sudo mount --bind /srv/ftp/grupos/$group /home/$user/ftp/mi_grupo
         sudo mount --bind /srv/ftp/general /home/$user/ftp/publica
