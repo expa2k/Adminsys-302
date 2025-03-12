@@ -1,63 +1,67 @@
 #!/usr/bin/env bash
 
 
-source ./ftp_functions.sh
+source ./funftp.sh
 
 clear
 
-instalarftp
+Instalacion_ftp
 
-crearanonimo
+Creacion_anonimo
 
 
-echo "Bienvenido a la configuracion principal de ftp"
+echo "Sistema de administracion FTP"
 
-ciclo=true
-while $ciclo
+continuar=true
+while $continuar
 do
 
-echo "¿que desea hacer"
+echo "Menu principal:"
 
-echo "1-Crear grupo"
+echo "1- Nuevo grupo"
 
-echo "2-Crear usuario"
+echo "2- Nuevo usuario"
 
-echo "3-asignar usuario-grupo"
+echo "3- Vincular usuario con grupo"
 
-echo "4-cambiar grupo"
+echo "4- Modificar grupo de usuario"
 
-echo "5- salir"
+echo "5- Salir del sistema"
 
 
-read -p "elija una opcion " opc
+read -p "Seleccione una opcion (1-5): " seleccion
 
-case $opc in
+case $seleccion in
  1)
-    read -p "ingrese el nombre del grupo " grupo
-    creargrupo "$grupo"
+    read -p "Nombre para el nuevo grupo: " equipo
+    Creacion_grupo "$grupo"
  ;;
  2)
-    read -p "ingrese el nombre de usuario " username
-    crearuser "$username"
+    read -p "Nombre para el nuevo usuario: " persona
+    Creacion_usuario "$persona"
  ;;
  3)
-    read -p "escriba el nombre de usuario a asignar a un grupo " user
-    read -p "escriba el nombre del grupo a asignar " grupo
-    asignargrupo "$user" "$grupo"
+    read -p "Usuario a vincular: " persona
+    read -p "Grupo destino: " equipo
+    Asignacion_grupo "$persona" "$grupo"
  ;;
  4)
-    cambiargrupo
+    Cambiar_grupo
  ;;
  5) 
-
-   ciclo=false
+   echo "Saliendo del sistema..."
+   continuar=false
+ ;;
+ *)
+   echo "Opcion no valida, intente nuevamente"
+ ;;
  esac
 
 done
 
 
-user="roberto"
-grupo="recursadore454"
+persona="carlos"
+grupo="reprobados123"
 
-existenciauser "$user"
+existenciauser "$persona"
 existenciagrupo "$grupo"

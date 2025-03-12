@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 Instalacion_ftp(){
-echo "Empezando a instalar el ftp"
+echo "Comenzando instalacion del servidor"
 sudo apt-get install vsftpd
-echo "ftp instalado"
+echo "Servidor listo"
 
 Creacion_carpetas
 }
@@ -12,7 +12,7 @@ Creacion_carpetas
 Creacion_carpetas(){
 if [ -d "/home/ftp" ]; then
 
-echo "folder ya existen"
+echo "carpeta base existe"
 
 else
 
@@ -22,7 +22,7 @@ fi
 
 if [ -d "/home/ftp/grupos" ]; then
 
-echo "los grupos ya existen"
+echo "teams ya creados"
 
 else
 
@@ -31,7 +31,7 @@ fi
 
 if [ -d "/home/ftp/usuarios" ]; then
 
-echo "Los usuarios ya existen"
+echo "people ya creados"
 
 else
 
@@ -40,7 +40,7 @@ fi
 
 if [ -d "/home/ftp/publica" ]; then
 
-echo "la carpeta publica ya existe"
+echo "shared ya existe"
 
 else
 
@@ -55,7 +55,7 @@ Creacion_anonimo(){
 
 if [ -d "/anonimo" ]; then
 
-echo "la carpeta para anonimo ya existe"
+echo "guest ya existe"
 
 else
 
@@ -64,7 +64,7 @@ fi
 
 if [ -d "/anonimo/publica" ]; then
 
-echo "El anonimo publico ya existe"
+echo "guest shared existe"
 
 else
 
@@ -74,7 +74,7 @@ fi
 
 
 if sudo grep -q "^anonymous_enable=YES" /etc/vsftpd.conf; then
-echo "ya funciona"
+echo "ya configurado"
 else
 
 sudo sed -i 's/^anonymous_enable=.*/anonymous_enable=YES/g' /etc/vsftpd.conf
@@ -85,7 +85,7 @@ fi
 
 
 if sudo grep -q "^write_enable=.*" /etc/vsftpd.conf; then
-echo "Ya esta habilitada la escritura"
+echo "Escritura habilitada"
 else
 sudo mount --bind /home/ftp/publica /anonimo/publica
 
@@ -116,10 +116,10 @@ fi
 
 Validacion_nombreusuario(){
 
-local user="$1"
+local persona="$1"
 local maximo=20
 
-if [ -n "$user" ] && [ ${#user} -le $maximo ]; then
+if [ -n "$persona" ] && [ ${#persona} -le $maximo ]; then
 
 return 1
 
@@ -137,20 +137,20 @@ local grupo="$1"
 
 if validarnombre_grupo "$grupo"; then
 
-echo "Nombre del grupo invalido "
+echo "Nombre no valido"
 
-InvalidGroupName=true
+NombreInvalido=true
 
-while $InvalidGroupName ; do
+while $NombreInvalido ; do
 
- read -p "ingrese de nuevo el nombre del grupo" grupo
+ read -p "Ingresa otro nombre" equipo
  
 if validarnombre_grupo "$grupo"; then
-echo "nombre de grupo invalido"
+echo "nombre no valido"
 
-InvalidGroupName=true
+NombreInvalido=true
 else 
-InvalidGroupName=false
+NombreInvalido=false
 
  
 fi
@@ -161,20 +161,20 @@ fi
 
 
 if existenciagrupo "$grupo"; then
-echo "el grupo ya existe "
+echo "ya existe"
 
-InvalidGroup=true
+GrupoDuplicado=true
 
-while $InvalidGroup ; do
+while $GrupoDuplicado ; do
 
- read -p "ingrese de nuevo el nombre del grupo" grupo
+ read -p "Ingresa otro nombre" equipo
  
 if existenciagrupo "$grupo"; then
-echo "el grupo ya existe"
+echo "ya existe"
 
-InvalidGroup=true
+GrupoDuplicado=true
 else 
-InvalidGroup=false
+GrupoDuplicado=false
 
  
 fi
@@ -185,33 +185,33 @@ fi
 
 sudo groupadd $grupo
 
-echo "grupo creado"
+echo "equipo creado"
 
-sudo mkdir /home/ftp/grupos/$grupo
+sudo mkdir /home/ftp/grupos/$equipo
 
-sudo chgrp $grupo /home/ftp/grupos/$grupo
+sudo chgrp $equipo /home/ftp/grupos/$equipo
 }
 
 Creacion_usuario(){
-local user="$1"
+local persona="$1"
 
 
-if validarnombre_user "$user"; then
+if validarnombre_user "$persona"; then
 
-echo "nombre de usuario invalido "
+echo "nombre no valido"
 
-InvalidUserName=true
+NombreInvalido=true
 
-while $InvalidUserName; do
+while $NombreInvalido; do
 
- read -p "ingrese de nuevo el nombre del usuario" user
+ read -p "ingresa otro nombre" persona
  
-if validarnombre_user "$user"; then
-echo "nombre de usuario invalido"
+if validarnombre_user "$persona"; then
+echo "nombre no valido"
 
-InvalidUserName=true
+NombreInvalido=true
 else 
-InvalidUserName=false
+NombreInvalido=false
 
  
 fi
@@ -221,21 +221,21 @@ fi
 
 
 
-if existenciauser "$user"; then
-echo "el usuario ya existe "
+if existenciauser "$persona"; then
+echo "ya existe"
 
-InvalidUserName=true
+UsuarioDuplicado=true
 
-while $InvalidUserName; do
+while $UsuarioDuplicado; do
 
- read -p "ingrese de nuevo el nombre del usuario" user
+ read -p "ingresa otro nombre" persona
  
-if existenciauser "$user"; then
-echo "el usuario ya existe"
+if existenciauser "$persona"; then
+echo "ya existe"
 
-InvalidUserName=true
+UsuarioDuplicado=true
 else 
-InvalidUserName=false
+UsuarioDuplicado=false
 
  
 fi
@@ -247,42 +247,42 @@ fi
 
 
 
-sudo adduser $user
-echo "usuario creado exitosamente"
-sudo mkdir /home/$user/$user
-sudo mkdir /home/ftp/usuarios/$user
+sudo adduser $persona
+echo "persona creada"
+sudo mkdir /home/$persona/$persona
+sudo mkdir /home/ftp/usuarios/$persona
 
 
-sudo chmod 700 /home/$user/$user
-sudo chmod 700 /home/ftp/usuarios/$user
+sudo chmod 700 /home/$persona/$persona
+sudo chmod 700 /home/ftp/usuarios/$persona
 
 sudo chmod 777 /home/ftp/publica
 
-sudo mkdir /home/$user/publica
+sudo mkdir /home/$persona/publica
 
-sudo chown $user /home/ftp/usuarios/$user
+sudo chown $persona /home/ftp/usuarios/$persona
 
-sudo chown $user /home/$user/$user
+sudo chown $persona /home/$persona/$persona
 
-sudo mount --bind /home/ftp/usuarios/$user /home/$user/$user
+sudo mount --bind /home/ftp/usuarios/$persona /home/$persona/$persona
 
-sudo mount --bind /home/ftp/publica /home/$user/publica
+sudo mount --bind /home/ftp/publica /home/$persona/publica
 
 }
 
 Asignacion_grupo(){
-local user="$1"
+local persona="$1"
 local grupo="$2"
 
-sudo adduser $user $grupo
+sudo adduser $persona $grupo
 
-echo "grupo asignado"
+echo "asignado"
 
 sudo chmod 774 /home/ftp/grupos/$grupo
 
-sudo mkdir /home/$user/$grupo
+sudo mkdir /home/$persona/$grupo
 
-sudo mount --bind /home/ftp/grupos/$grupo /home/$user/$grupo
+sudo mount --bind /home/ftp/grupos/$equipo /home/$persona/$grupo
 
 
 
@@ -291,45 +291,45 @@ sudo mount --bind /home/ftp/grupos/$grupo /home/$user/$grupo
 
 Cambiar_grupo(){
 
-read -p "escriba al usuario a quien desea cambiar de grupo " user
-read -p "escriba el nuevo grupo de ese usuario " group
+read -p "persona a cambiar" persona
+read -p "nuevo equipo" equipo
 
-grupoactual=$(groups "$user" | awk '{print $5}')
+grupoactual=$(groups "$persona" | awk '{print $5}')
 
 {
-sudo umount /home/$user/$grupoactual
+sudo umount /home/$persona/$grupoactual
 } || {
 
-echo "hubo un problema"
+echo "error"
 exit 1
 
 }
 
-sudo deluser $user $grupoactual
-sudo adduser $user $group
+sudo deluser $persona $grupoactual
+sudo adduser $persona $grupo
 
-sudo mv /home/$user/$grupoactual /home/$user/$group
+sudo mv /home/$persona/$equipoactual /home/$persona/$grupo
 
-sudo mount --bind /home/ftp/grupos/$group /home/$user/$group
+sudo mount --bind /home/ftp/grupos/$grupo /home/$persona/$grupo
 
-sudo chgrp $group /home/$user/$group
+sudo chgrp $grupo /home/$persona/$grupo
 
 }
 
 existenciauser(){
-local user="$1"
+local persona="$1"
 
-existencia=false
+existe=false
 
-if id $user &> /dev/null; then
+if id $persona &> /dev/null; then
 
-    existencia=0
+    existe=0
 else
-  existencia=1
+  existe=1
 
 fi
 
-return "$existencia"
+return "$existe"
 
 }
 
@@ -337,16 +337,16 @@ return "$existencia"
 existenciagrupo(){
 local grupo="$1"
 
-existencia=false
+existe=false
 
-if getent group "$grupo" > /dev/null 2 >&1; then
+if getent group "$grupo" > /dev/null 2>&1; then
 
-   existencia=0
+   existe=0
 else
 
-  existencia=1
+  existe=1
 fi
 
-return "$existencia"
+return "$existe"
 
 }
