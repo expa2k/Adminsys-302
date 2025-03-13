@@ -1,23 +1,22 @@
 #!/bin/bash
 
-# Función para limpiar configuraciones existentes
 cleanup_existing_config() {
     echo "Limpiando configuraciones existentes..."
-    # Detener el servicio vsftpd
+    
     sudo systemctl stop vsftpd
-    # Desmontar puntos de montaje existentes relacionados con /srv/ftp
+   
     for mount_point in $(mount | grep "/srv/ftp" | awk '{print $3}'); do
         echo "Desmontando $mount_point"
         sudo umount "$mount_point" 2>/dev/null
     done
-    # Hacer backup del fstab
+    
     sudo cp /etc/fstab /etc/fstab.backup
-    # Limpiar entradas de /srv/ftp del fstab
+    
     sudo grep -v "/srv/ftp/" /etc/fstab.backup | sudo tee /etc/fstab > /dev/null
     echo "Limpieza completada."
 }
 
-# Función para agregar entrada de montaje si no existe
+
 add_mount_entry() {
     local source="$1"
     local target="$2"
@@ -28,22 +27,18 @@ add_mount_entry() {
     fi
 }
 
-# Función para montar directorios de forma segura
+
 mount_directory() {
     local source="$1"
     local target="$2"
-    # Verificar que los directorios existen
     if [[ ! -d "$source" ]] || [[ ! -d "$target" ]]; then
         echo "Error: Directorio fuente o destino no existe"
         return 1
     fi
-    # Desmontar si ya está montado
     if mountpoint -q "$target" 2>/dev/null; then
         sudo umount "$target"
     fi
-    # Realizar el montaje
     sudo mount --bind "$source" "$target"
-    # Agregar al fstab solo si no existe
     add_mount_entry "$source" "$target"
 }
 
@@ -164,79 +159,7 @@ show_menu() {
     echo "Seleccione una opción:"
 }
 
-# Función principal del menú
-menu_principal() {
-    while true; do
-        show_menu
-        read -r opcion
-        case $opcion in
-            1) # Agregar usuario
-                while true; do
-                    read -p "Ingrese el nombre del usuario: " nombreUsuario
-                    if userValid "$nombreUsuario"; then
-                        break
-                    fi
-                    echo "Por favor, ingrese un nombre de usuario válido."
-                done
-                
-                while true; do
-                    read -p "Ingrese el grupo (reprobados/recursadores): " nombreGrupo
-                    if [[ "$nombreGrupo" == "reprobados" || "$nombreGrupo" == "recursadores" ]]; then
-                        break
-                    fi
-                    echo "Grupo inválido. Use 'reprobados' o 'recursadores'"
-                done
-                
-                createUser "$nombreUsuario" "$nombreGrupo"
-                ;;
-            2) # Cambiar grupo
-                clear
-                read -p "Ingrese el nombre del usuario: " nombreUsuario
-                # Verificar si el usuario existe
-                if ! id "$nombreUsuario" >/dev/null 2>&1; then
-                    echo "Error: El usuario $nombreUsuario no existe"
-                    continue
-                fi
-                # Mostrar grupo actual
-                grupoActual=$(groups "$nombreUsuario" | grep -o -E "reprobados|recursadores" | head -1)
-                echo "Grupo actual: $grupoActual"
-                
-                while true; do
-                    read -p "Ingrese el nuevo grupo (reprobados/recursadores): " nuevoGrupo
-                    if [[ "$nuevoGrupo" == "reprobados" || "$nuevoGrupo" == "recursadores" ]]; then
-                        if [[ "$grupoActual" == "$nuevoGrupo" ]]; then
-                            echo "El usuario ya pertenece a ese grupo"
-                        else
-                            if changeUserGroup "$nombreUsuario" "$nuevoGrupo"; then
-                                echo "Cambio de grupo realizado "
-                            else
-                                echo "Error al cambiar de grupo"
-                            fi
-                        fi
-                        break
-                    else
-                        echo "Grupo inválido. Use 'reprobados' o 'recursadores'"
-                    fi
-                done
-                ;;
-            3) # Eliminar usuario
-                read -p "Ingrese el nombre del usuario a eliminar: " nombreUsuario
-                read -p "¿Está seguro de eliminar al usuario '$nombreUsuario'? (s/n): " confirmar
-                if [[ "$confirmar" == "s" ]]; then
-                    deleteUser "$nombreUsuario"
-                fi
-                ;;
-            4) # Salir
-                echo "Saliendo"
-                exit 0
-                ;;
-            *)
-                echo "Opción inválida"
-                ;;
-        esac
-    done
-}
-
+# Función principal de configuración
 main() {
     # Instalar vsftpd
     sudo apt install vsftpd -y
@@ -318,9 +241,3 @@ EOF
     sudo systemctl status vsftpd
     echo "Configuración completada. Si hay problemas, revise los logs con: sudo journalctl -u vsftpd.service -n 50 --no-pager"
 }
-
-# Ejecutar la función principal
-main
-
-# Iniciar el menú principal
-menu_principal
