@@ -1,37 +1,37 @@
 ﻿function Verificar-CaracteristicaWindows {
     [CmdletBinding()]
     param(
-        [Parameter(Position=0,Mandatory=$true)] [string]$NombreCaracteristica 
+        [Parameter(Position=0, Mandatory=$true)] [string]$NombreCaracteristica 
     )  
     return (Get-WindowsOptionalFeature -FeatureName $NombreCaracteristica -Online).State -eq "Enabled"
 }
 
-if(-not (Verificar-CaracteristicaWindows "Web-Server")){
+if (-not (Verificar-CaracteristicaWindows "Web-Server")) {
     Install-WindowsFeature Web-Server -IncludeManagementTools
 }
 
-if(-not (Verificar-CaracteristicaWindows "Web-Ftp-Server")){
+if (-not (Verificar-CaracteristicaWindows "Web-Ftp-Server")) {
     Install-WindowsFeature Web-Ftp-Server -IncludeAllSubFeature
 }
 
-if(-not (Verificar-CaracteristicaWindows "Web-Basic-Auth")){
+if (-not (Verificar-CaracteristicaWindows "Web-Basic-Auth")) {
     Install-WindowsFeature Web-Basic-Auth
 }
 
 Import-Module WebAdministration
 
-function Asegurar-Carpeta([String]$ruta){
-    if(!(Test-Path $ruta)){
+function Asegurar-Carpeta([String]$ruta) {
+    if (!(Test-Path $ruta)) {
         New-Item -ItemType Directory -Path $ruta | Out-Null
     }
 }
 
-function Crear-FTP([String]$nombre, [Int]$puerto = 21, [String]$directorio){
+function Crear-FTP([String]$nombre, [Int]$puerto = 21, [String]$directorio) {
     New-WebFtpSite -Name $nombre -Port $puerto -PhysicalPath $directorio -Force
     return $nombre
 }
 
-function Obtener-ADSI(){
+function Obtener-ADSI() {
     return [ADSI]"WinNT://$env:ComputerName"
 }
 
@@ -49,49 +49,50 @@ Function Evaluar-Contrasena {
     return ($Clave.Length -ge $minimo -and $Clave -match $mayus -and $Clave -match $minus -and $Clave -match $numero -and $Clave -match $especial)
 }
 
-function Crear-GrupoFTP([String]$nombre, [String]$descripcion){
-    $grupo = Obtener-ADSI().Create("Group", "$nombre")
+function Crear-GrupoFTP([String]$nombre, [String]$descripcion) {
+    $adsi = Obtener-ADSI()
+    $grupo = $adsi.Create("Group", $nombre)
     $grupo.Description = $descripcion
     $grupo.SetInfo()
     return $nombre
 }
 
-function Crear-UsuarioFTP([String]$usuario, [String]$clave){
-    $nuevoUsuario = Obtener-ADSI().Create("User", "$usuario")
+function Crear-UsuarioFTP([String]$usuario, [String]$clave) {
+    $adsi = Obtener-ADSI()
+    $nuevoUsuario = $adsi.Create("User", $usuario)
     $nuevoUsuario.SetInfo()
-    $nuevoUsuario.SetPassword("$clave")
+    $nuevoUsuario.SetPassword($clave)
     $nuevoUsuario.SetInfo()
 }
 
-function Agregar-UsuarioAGrupo([String]$usuario, [String]$grupo){
-    $cuenta = New-Object System.Security.Principal.NTAccount("$usuario")
-    $sid = $cuenta.Translate([System.Security.Principal.SecurityIdentifier])
+function Agregar-UsuarioAGrupo([String]$usuario, [String]$grupo) {
     $grupoAD = [ADSI]"WinNT://$env:ComputerName/$grupo,Group"
-    $usuarioAD = [ADSI]"WinNT://$sid"
+    $usuarioAD = [ADSI]"WinNT://$env:ComputerName/$usuario,User"
     $grupoAD.Add($usuarioAD.Path)
 }
 
-function Configurar-AutenticacionFTP(){
-    Set-ItemProperty "IIS:\Sites\FTP_Servidor" -Name ftpServer.Security.authentication.basicAuthentication.enabled -Value $true
+function Configurar-AutenticacionFTP() {
+    Set-ItemProperty "IIS:\Sites\FTP_Servidor" -Name ftpServer.security.authentication.basicAuthentication.enabled -Value $true
 }
 
-function Configurar-Permisos([String]$grupo, [Int]$nivel = 3, [String]$carpeta){
-    Add-WebConfiguration "/system.ftpServer/security/authorization" -value @{accessType="Allow";roles="$grupo";permissions=$nivel} -PSPath IIS:\ -location "FTP_Servidor/$carpeta"
+function Configurar-Permisos([String]$grupo, [String]$carpeta) {
+    Add-WebConfiguration "/system.ftpServer/security/authorization" -value @{accessType="Allow";roles="$grupo";permissions="Read, Write"} -PSPath IIS:\ -location "FTP_Servidor/$carpeta"
 }
 
-function Configurar-SSL($activar){
-    if ($activar){
+function Configurar-SSL($activar) {
+    if ($activar) {
         $certificado = "96D9BFD93676F3BC2E9F54D9138C4C92801EB6DD"
         Set-ItemProperty "IIS:\Sites\FTP_Servidor" -Name ftpServer.security.ssl.serverCertHash -Value $certificado
         Set-ItemProperty "IIS:\Sites\FTP_Servidor" -Name ftpServer.security.ssl.controlChannelPolicy -Value "SslRequire"
         Set-ItemProperty "IIS:\Sites\FTP_Servidor" -Name ftpServer.security.ssl.dataChannelPolicy -Value "SslRequire"
-    } else {
+    }
+    else {
         Set-ItemProperty "IIS:\Sites\FTP_Servidor" -Name ftpServer.security.ssl.controlChannelPolicy -Value 0
         Set-ItemProperty "IIS:\Sites\FTP_Servidor" -Name ftpServer.security.ssl.dataChannelPolicy -Value 0
     }
 }
 
-function Reiniciar-FTP(){
+function Reiniciar-FTP() {
     Restart-WebItem "IIS:\Sites\FTP_Servidor"
 }
 
@@ -101,7 +102,14 @@ Asegurar-Carpeta $rutaFTP
 Crear-FTP -nombre "FTP_Servidor" -puerto 21 -directorio $rutaFTP
 Set-ItemProperty "IIS:\Sites\FTP_Servidor" -Name ftpServer.userIsolation.mode -Value 3
 
-if(!(Get-LocalGroup -Name "UsuariosFTP")){
+# Validación de existencia del grupo "UsuariosFTP"
+try {
+    $grupoFTP = [ADSI]"WinNT://$env:ComputerName/UsuariosFTP,group"
+    if (-not $grupoFTP.Path) {
+        Crear-GrupoFTP -nombre "UsuariosFTP" -descripcion "Usuarios permitidos en el servidor FTP"
+    }
+}
+catch {
     Crear-GrupoFTP -nombre "UsuariosFTP" -descripcion "Usuarios permitidos en el servidor FTP"
 }
 
@@ -111,41 +119,43 @@ $habilitarSSL = Read-Host "¿Desea activar SSL? (si/no)"
 Configurar-SSL ($habilitarSSL -eq "si")
 Reiniciar-FTP
 
-# Menú
-while($true){
-    echo "\nOpciones:"
+# Menú principal
+while ($true) {
+    echo "`nOpciones:"
     echo "1. Agregar usuario"
     echo "2. Salir"
     
-    try{
+    try {
         $opcion = Read-Host "Seleccione una opción"
         $opcionNum = [int]$opcion
     }
-    catch{
+    catch {
         echo "Por favor, ingrese un número válido"
         continue
     }
     
-    if($opcionNum -eq 2){
+    if ($opcionNum -eq 2) {
         echo "Saliendo..."
         break
     }
     
-    if($opcionNum -eq 1){
-        try{
+    if ($opcionNum -eq 1) {
+        try {
             $usuario = Read-Host "Ingrese nombre de usuario"
             $clave = Read-Host "Ingrese contraseña"
             
-            if(-not (Evaluar-Contrasena -Clave $clave)){
+            if (-not (Evaluar-Contrasena -Clave $clave)) {
                 echo "La contraseña no cumple con los requisitos de seguridad"
-            } else {
+            }
+            else {
                 Crear-UsuarioFTP -usuario $usuario -clave $clave
                 Agregar-UsuarioAGrupo -usuario $usuario -grupo "UsuariosFTP"
                 echo "Usuario $usuario agregado con éxito"
             }
-        } catch {
+        }
+        catch {
             echo "Error: $_"
         }
     }
-    echo "\n"
+    echo "`n"
 }
