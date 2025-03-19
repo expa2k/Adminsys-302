@@ -4,7 +4,7 @@ $FTPPort=21
 $FTPRootDirLogin= "C:\FTP\LocalUser"
 
 
-. C:\Users\Administrador\Desktop\FTP\Ftp_Functions.ps1
+. C:\Users\Administrator\Adminsys-302\ftpfunciones.ps1
 
 instalarFTP
 
