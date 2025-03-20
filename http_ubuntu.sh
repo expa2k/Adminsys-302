@@ -39,17 +39,17 @@ es_puerto_reservado() {
 }
 
 ############################################
-# Función para instalar OpenJDK 11
+# Función para instalar OpenJDK 17
 ############################################
 instalar_java() {
-    echo "Instalando OpenJDK 11..."
-    apt update && apt install -y openjdk-11-jdk
+    echo "Instalando OpenJDK 17..."
+    apt update && apt install -y openjdk-17-jdk
     if [ $? -ne 0 ]; then
-        echo "Error al instalar OpenJDK 11. Verifica la conexión a internet y vuelve a intentarlo."
+        echo "Error al instalar OpenJDK 17. Verifica la conexión a internet y vuelve a intentarlo."
         exit 1
     fi
     echo "Configurando JAVA_HOME..."
-    echo "export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" >> /etc/environment
+    echo "export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> /etc/environment
     source /etc/environment
     echo "JAVA_HOME configurado en: $JAVA_HOME"
 }
@@ -151,32 +151,39 @@ instalar_nginx() {
 }
 
 ############################################
-# Función para instalar Tomcat
+# Función para instalar Tomcat con Java 17
 ############################################
 instalar_tomcat() {
     desinstalar_servicio "tomcat"
-    instalar_java
+    instalar_java  # Asegura que Java 17 está instalado antes de Tomcat
+
     echo "Selecciona la versión de Tomcat:"
     echo "1) Tomcat 10.1.39 (LTS)"
     echo "2) Tomcat 10.2.3 (Desarrollo)"
     read -p "Elige una opción (1 o 2): " version
+
     while ! validar_opcion "$version" || [[ "$version" -ne 1 && "$version" -ne 2 ]]; do
         read -p "Opción inválida. Elige 1 o 2: " version
     done
+
     if [ "$version" == "1" ]; then
         TOMCAT_VERSION="10.1.39"
     else
         TOMCAT_VERSION="10.2.3"
     fi
+
     echo "Descargando Tomcat versión $TOMCAT_VERSION..."
     wget "https://downloads.apache.org/tomcat/tomcat-10/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz" -O apache-tomcat.tar.gz
+
     if [ $? -ne 0 ]; then
         echo "Error al descargar Tomcat. Verifica la URL."
         exit 1
     fi
+
     tar -xvzf apache-tomcat.tar.gz
     mv apache-tomcat-* /opt/tomcat
     chmod +x /opt/tomcat/bin/*.sh
+
     echo "Creando archivo de servicio de Tomcat..."
     cat <<EOF | tee /etc/systemd/system/tomcat.service
 [Unit]
@@ -187,7 +194,7 @@ After=network.target
 Type=forking
 User=root
 Group=root
-Environment="JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64"
+Environment="JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64"
 Environment="CATALINA_PID=/opt/tomcat/temp/tomcat.pid"
 Environment="CATALINA_HOME=/opt/tomcat"
 Environment="CATALINA_BASE=/opt/tomcat"
@@ -198,11 +205,14 @@ LimitNOFILE=4096
 [Install]
 WantedBy=multi-user.target
 EOF
+
     systemctl daemon-reload
     systemctl enable tomcat
     systemctl start tomcat
+
     configurar_servicio "tomcat"
 }
+
 
 ############################################
 # Función para solicitar puerto libre
