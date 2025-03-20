@@ -1,8 +1,8 @@
 #!/bin/bash
 
-
+############################################
 # Función para validar entrada (solo números)
-
+############################################
 validar_opcion() {
     if [[ "$1" =~ ^[0-9]+$ ]]; then
         return 0
@@ -12,9 +12,9 @@ validar_opcion() {
     fi
 }
 
-
+############################################
 # Función para validar puerto (1-65535)
-
+############################################
 validar_puerto() {
     if [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]; then
         return 0
@@ -24,9 +24,9 @@ validar_puerto() {
     fi
 }
 
-
+############################################
 # Función para verificar si el puerto está reservado
-
+############################################
 es_puerto_reservado() {
     local puerto="$1"
     local reserved=(21 22 23 25 53 80 110 135 139 443 445 3306 1433 5432 8080)
@@ -38,9 +38,9 @@ es_puerto_reservado() {
     return 1  # Falso: no está reservado
 }
 
-
+############################################
 # Función para instalar OpenJDK 11
-
+############################################
 instalar_java() {
     echo "Instalando OpenJDK 11..."
     apt update && apt install -y openjdk-11-jdk
@@ -54,9 +54,9 @@ instalar_java() {
     echo "JAVA_HOME configurado en: $JAVA_HOME"
 }
 
-
+############################################
 # Función para desinstalar/eliminar versión anterior
-
+############################################
 desinstalar_servicio() {
     local servicio="$1"
     if [ "$servicio" == "apache2" ]; then
@@ -87,9 +87,9 @@ desinstalar_servicio() {
     fi
 }
 
-
+############################################
 # Función para crear un HTML llamativo para Apache
-
+############################################
 crear_html_apache() {
     echo "Creando página web para Apache en /var/www/html/index.html..."
     mkdir -p /var/www/html
@@ -107,9 +107,9 @@ crear_html_apache() {
 EOF
 }
 
-
+############################################
 # Función para instalar Apache
-
+############################################
 instalar_apache() {
     desinstalar_servicio "apache2"
     echo "Selecciona la versión de Apache:"
@@ -129,9 +129,9 @@ instalar_apache() {
     configurar_servicio "apache2"
 }
 
-
+############################################
 # Función para instalar Nginx
-
+############################################
 instalar_nginx() {
     desinstalar_servicio "nginx"
     echo "Selecciona la versión de Nginx:"
@@ -150,8 +150,9 @@ instalar_nginx() {
     configurar_servicio "nginx"
 }
 
+############################################
 # Función para instalar Tomcat
-
+############################################
 instalar_tomcat() {
     desinstalar_servicio "tomcat"
     instalar_java
@@ -203,10 +204,10 @@ EOF
     configurar_servicio "tomcat"
 }
 
-
+############################################
 # Función para solicitar puerto libre
 # Se verifica que no esté en uso y que no sea un puerto reservado.
-
+############################################
 solicitar_puerto() {
     local puerto
     while true; do
@@ -229,9 +230,9 @@ solicitar_puerto() {
     echo "$puerto"
 }
 
-
+############################################
 # Función para configurar el servicio, reglas de firewall y mostrar la URL
-
+############################################
 configurar_servicio() {
     puerto=$(solicitar_puerto)
     ufw allow "$puerto"/tcp
@@ -262,21 +263,26 @@ configurar_servicio() {
     echo "El servicio $1 está disponible en: http://$IP:$puerto"
 }
 
-
+############################################
+# Menú principal cíclico
+############################################
 while true; do
-    echo "Que servicio quieres instalar?"
+    echo "¿Qué servicio desea instalar?"
     echo "1) Apache"
     echo "2) Tomcat"
     echo "3) Nginx"
     echo "4) Salir"
-    read -p "Seleccione una opción del 1 al 4: " opcion
+    read -p "Seleccione una opción (1-4): " opcion
     while ! validar_opcion "$opcion" || [[ "$opcion" -lt 1 || "$opcion" -gt 4 ]]; do
-        read -p "Opcion no valida, seleccione una opcion valida del 1 al 4: " opcion
+        read -p "Opción inválida. Seleccione una opción válida (1-4): " opcion
     done
     case "$opcion" in
         1) instalar_apache ;;
         2) instalar_tomcat ;;
         3) instalar_nginx ;;
-        4) exit 0 ;;
+        4) echo "Saliendo del script."; exit 0 ;;
     esac
+    echo "----------------------------------------"
+    echo "Regresando al menú principal..."
+    echo "----------------------------------------"
 done
