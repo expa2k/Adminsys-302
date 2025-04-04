@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Apache, Tomcat y Nginx funcionan con SSL desde web
-# Apache, Tomcat y Nginx ya funcionan con SSL desde el servidor FTP.
-# Al parecer todo esta listo.
 
 source Funciones_SSL.sh
 source Funciones_HTTP.sh
