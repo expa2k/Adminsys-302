@@ -93,7 +93,7 @@ mkdir -p /home/$USUARIO_ACTUAL/apache-personalizado
 cd /home/$USUARIO_ACTUAL/apache-personalizado
 
 # Crear el archivo index.html personalizado
-echo "<html><body><h1>Imagen Apache Personalizada</h1><p>El apache ruben.</p></body></html>" > index.html
+echo "<html><body><h1>El apache ruben.</h1><p></p></body></html>" > index.html
 
 # Crear el Dockerfile
 cat > Dockerfile << 'EOF'
@@ -148,7 +148,7 @@ sleep 15
 # Crear tabla de prueba en postgres1
 echo "Creando tabla de prueba en postgres1..."
 docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES1_PASSWORD psql -U $POSTGRES1_USER -d $POSTGRES1_DB -c 'CREATE TABLE prueba (id serial PRIMARY KEY, nombre VARCHAR(50));'"
-docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES1_PASSWORD psql -U $POSTGRES1_USER -d $POSTGRES1_DB -c \"INSERT INTO prueba (nombre) VALUES ('Datos de prueba desde postgres1');\""
+docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES1_PASSWORD psql -U $POSTGRES1_USER -d $POSTGRES1_DB -c \"INSERT INTO prueba (nombre) VALUES ('Hola amiguitos');\""
 
 # Verificar que la tabla se creó correctamente
 echo "Verificando que la tabla se creó correctamente en postgres1:"
@@ -176,18 +176,18 @@ docker exec -it postgres2 bash -c "PGPASSWORD=remote_pass psql -h postgres1 -U r
 
 # Insertar datos desde postgres2 a postgres1
 echo "Insertando datos desde postgres2 a la tabla en postgres1:"
-docker exec -it postgres2 bash -c "PGPASSWORD=remote_pass psql -h postgres1 -U remote_user -d $POSTGRES1_DB -c \"INSERT INTO prueba (nombre) VALUES ('Datos insertados desde postgres2');\""
+docker exec -it postgres2 bash -c "PGPASSWORD=remote_pass psql -h postgres1 -U remote_user -d $POSTGRES1_DB -c \"INSERT INTO prueba (nombre) VALUES ('Dgoat');\""
 
 # Crear tabla en postgres2
 echo "Creando tabla en postgres2..."
-docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c 'CREATE TABLE prueba_local (id serial PRIMARY KEY, nombre VARCHAR(50));'"
-docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c \"INSERT INTO prueba_local (nombre) VALUES ('Datos locales en postgres2');\""
+docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c 'CREATE TABLE prueba_1 (id serial PRIMARY KEY, nombre VARCHAR(50));'"
+docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c \"INSERT INTO prueba_1 (nombre) VALUES ('Dbooker');\""
 
 # Crear usuario en postgres2 para acceso remoto desde postgres1
 echo "Creando usuario en postgres2 para acceso remoto desde postgres1..."
 docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c \"CREATE USER remote_user2 WITH PASSWORD 'remote_pass2';\""
 docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c \"GRANT ALL PRIVILEGES ON DATABASE $POSTGRES2_DB TO remote_user2;\""
-docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c \"GRANT ALL PRIVILEGES ON TABLE prueba_local TO remote_user2;\""
+docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c \"GRANT ALL PRIVILEGES ON TABLE prueba_1 TO remote_user2;\""
 
 # Modificar configuración de PostgreSQL en postgres2 para permitir conexiones remotas
 echo "Configurando postgres2 para permitir conexiones remotas..."
@@ -201,18 +201,18 @@ docker exec -it postgres1 bash -c "apt-get update && apt-get install -y postgres
 
 # Conectar desde postgres1 al postgres2 usando el nombre del contenedor como host
 echo "Verificando conexión desde postgres1 a postgres2 usando nombre del contenedor como host:"
-docker exec -it postgres1 bash -c "PGPASSWORD=remote_pass2 psql -h postgres2 -U remote_user2 -d $POSTGRES2_DB -c 'SELECT * FROM prueba_local;'"
+docker exec -it postgres1 bash -c "PGPASSWORD=remote_pass2 psql -h postgres2 -U remote_user2 -d $POSTGRES2_DB -c 'SELECT * FROM prueba_1;'"
 
 # Insertar datos desde postgres1 a postgres2
 echo "Insertando datos desde postgres1 a la tabla en postgres2:"
-docker exec -it postgres1 bash -c "PGPASSWORD=remote_pass2 psql -h postgres2 -U remote_user2 -d $POSTGRES2_DB -c \"INSERT INTO prueba_local (nombre) VALUES ('Datos insertados desde postgres1');\""
+docker exec -it postgres1 bash -c "PGPASSWORD=remote_pass2 psql -h postgres2 -U remote_user2 -d $POSTGRES2_DB -c \"INSERT INTO prueba_1 (nombre) VALUES ('Durant');\""
 
 # Verificar los datos insertados en ambas bases de datos
 echo "Verificando todos los datos en la tabla de postgres1:"
 docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES1_PASSWORD psql -U $POSTGRES1_USER -d $POSTGRES1_DB -c 'SELECT * FROM prueba;'"
 
 echo "Verificando todos los datos en la tabla de postgres2:"
-docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c 'SELECT * FROM prueba_local;'"
+docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c 'SELECT * FROM prueba_1;'"
 
 echo ""
 echo "====== CONFIGURACIÓN COMPLETADA ======"
