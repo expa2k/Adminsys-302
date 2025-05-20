@@ -14,7 +14,7 @@ fi
 
 # Variables de configuración
 USUARIO_ACTUAL=$(logname || echo $SUDO_USER || echo $USER)
-APACHE_PUERTO=8080
+APACHE_DEFAULT_PUERTO=8080
 APACHE_PERSONALIZADO_PUERTO=8081
 POSTGRES1_PUERTO=5432
 POSTGRES2_PUERTO=5433
@@ -66,26 +66,22 @@ docker pull httpd:latest
 docker images | grep httpd
 
 # Limpiar contenedores existentes con el mismo nombre si existen
-docker rm -f mi-apache 2>/dev/null || true
+docker rm -f mi-apache-default 2>/dev/null || true
 docker rm -f mi-apache-mod 2>/dev/null || true
 docker rm -f apache-custom 2>/dev/null || true
 
-# Ejecutar un contenedor con la imagen de Apache
-docker run -d --name mi-apache -p $APACHE_PUERTO:80 httpd:latest
-echo "Apache desplegado en http://localhost:$APACHE_PUERTO"
+# Ejecutar un contenedor con la imagen de Apache default sin modificaciones
+docker run -d --name mi-apache-default -p $APACHE_DEFAULT_PUERTO:80 httpd:latest
+echo "Apache default desplegado en http://localhost:$APACHE_DEFAULT_PUERTO"
 
 echo "==== 3. Modificando la imagen para cambiar el contenido de la página inicial ===="
 # Crear un directorio local para nuestro contenido personalizado
 mkdir -p /home/$USUARIO_ACTUAL/contenido-apache
 echo "<html><body><h1>Mi Página Apache Personalizada</h1><p>El apache ruben.</p></body></html>" > /home/$USUARIO_ACTUAL/contenido-apache/index.html
 
-# Detener y eliminar el contenedor anterior
-docker stop mi-apache
-docker rm mi-apache
-
 # Ejecutar un nuevo contenedor montando nuestro contenido personalizado
-docker run -d --name mi-apache-mod -p $APACHE_PUERTO:80 -v /home/$USUARIO_ACTUAL/contenido-apache:/usr/local/apache2/htdocs/ httpd:latest
-echo "Apache con contenido modificado desplegado en http://localhost:$APACHE_PUERTO"
+docker run -d --name mi-apache-mod -p $APACHE_PERSONALIZADO_PUERTO:80 -v /home/$USUARIO_ACTUAL/contenido-apache:/usr/local/apache2/htdocs/ httpd:latest
+echo "Apache con contenido modificado desplegado en http://localhost:$APACHE_PERSONALIZADO_PUERTO"
 
 echo "==== 4. Creando una imagen personalizada con el archivo index modificado ===="
 # Crear un directorio para nuestro Dockerfile
@@ -216,7 +212,7 @@ docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTG
 
 echo ""
 echo "====== CONFIGURACIÓN COMPLETADA ======"
-echo "Apache estándar: http://localhost:$APACHE_PUERTO"
+echo "Apache default (sin modificaciones): http://localhost:$APACHE_DEFAULT_PUERTO"
 echo "Apache personalizado: http://localhost:$APACHE_PERSONALIZADO_PUERTO"
 echo "PostgreSQL 1: localhost:$POSTGRES1_PUERTO (usuario: $POSTGRES1_USER, contraseña: $POSTGRES1_PASSWORD, BD: $POSTGRES1_DB)"
 echo "PostgreSQL 2: localhost:$POSTGRES2_PUERTO (usuario: $POSTGRES2_USER, contraseña: $POSTGRES2_PASSWORD, BD: $POSTGRES2_DB)"
