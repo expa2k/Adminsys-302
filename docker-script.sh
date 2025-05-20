@@ -93,7 +93,7 @@ mkdir -p /home/$USUARIO_ACTUAL/apache-personalizado
 cd /home/$USUARIO_ACTUAL/apache-personalizado
 
 # Crear el archivo index.html personalizado
-echo "<html><body><h1>Apache de ruben.</h1><p></p></body></html>" > index.html
+echo "<html><body><h1>Imagen Apache Personalizada</h1><p>El apache ruben.</p></body></html>" > index.html
 
 # Crear el Dockerfile
 cat > Dockerfile << 'EOF'
