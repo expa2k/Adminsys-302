@@ -77,7 +77,7 @@ echo "Apache desplegado en http://localhost:$APACHE_PUERTO"
 echo "==== 3. Modificando la imagen para cambiar el contenido de la página inicial ===="
 # Crear un directorio local para nuestro contenido personalizado
 mkdir -p /home/$USUARIO_ACTUAL/contenido-apache
-echo "<html><body><h1></h1><p>It works!</p></body></html>" > /home/$USUARIO_ACTUAL/contenido-apache/index.html
+echo "<html><body><h1>It works!</h1><p></p></body></html>" > /home/$USUARIO_ACTUAL/contenido-apache/index.html
 
 # Detener y eliminar el contenedor anterior
 docker stop mi-apache
