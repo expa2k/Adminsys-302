@@ -18,9 +18,15 @@ APACHE_PUERTO=8080
 APACHE_PERSONALIZADO_PUERTO=8081
 POSTGRES1_PUERTO=5432
 POSTGRES2_PUERTO=5433
-POSTGRES_PASSWORD="secreto"
-POSTGRES_USER="usuario"
-POSTGRES_DB="midb"
+
+# Variables específicas para cada instancia de PostgreSQL
+POSTGRES1_USER="postgres1_user"
+POSTGRES1_PASSWORD="postgres1_secreto"
+POSTGRES1_DB="postgres1_db"
+
+POSTGRES2_USER="postgres2_user"
+POSTGRES2_PASSWORD="postgres2_secreto"
+POSTGRES2_DB="postgres2_db"
 
 echo "==== 1. Instalando Docker en Ubuntu ===="
 # Actualizar repositorios
@@ -71,7 +77,7 @@ echo "Apache desplegado en http://localhost:$APACHE_PUERTO"
 echo "==== 3. Modificando la imagen para cambiar el contenido de la página inicial ===="
 # Crear un directorio local para nuestro contenido personalizado
 mkdir -p /home/$USUARIO_ACTUAL/contenido-apache
-echo "<html><body><h1>Mi Página Apache Personalizada</h1><p>Esta es mi configuración personalizada de Apache en Docker.</p></body></html>" > /home/$USUARIO_ACTUAL/contenido-apache/index.html
+echo "<html><body><h1>Mi Página Apache Personalizada</h1><p>El apache ruben.</p></body></html>" > /home/$USUARIO_ACTUAL/contenido-apache/index.html
 
 # Detener y eliminar el contenedor anterior
 docker stop mi-apache
@@ -87,7 +93,7 @@ mkdir -p /home/$USUARIO_ACTUAL/apache-personalizado
 cd /home/$USUARIO_ACTUAL/apache-personalizado
 
 # Crear el archivo index.html personalizado
-echo "<html><body><h1>Imagen Apache Personalizada</h1><p>Esta es una imagen personalizada de Apache construida con Docker.</p></body></html>" > index.html
+echo "<html><body><h1>Imagen Apache Personalizada</h1><p>El apache ruben.</p></body></html>" > index.html
 
 # Crear el Dockerfile
 cat > Dockerfile << 'EOF'
@@ -115,22 +121,22 @@ docker network rm mi-red-postgres 2>/dev/null || true
 docker network create mi-red-postgres
 echo "Red Docker 'mi-red-postgres' creada."
 
-# Ejecutar el primer contenedor PostgreSQL
+# Ejecutar el primer contenedor PostgreSQL con usuario específico
 docker run -d --name postgres1 \
     --network mi-red-postgres \
-    -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
-    -e POSTGRES_USER=$POSTGRES_USER \
-    -e POSTGRES_DB=$POSTGRES_DB \
+    -e POSTGRES_PASSWORD=$POSTGRES1_PASSWORD \
+    -e POSTGRES_USER=$POSTGRES1_USER \
+    -e POSTGRES_DB=$POSTGRES1_DB \
     -p $POSTGRES1_PUERTO:5432 \
     postgres:latest
 echo "Primer contenedor PostgreSQL (postgres1) desplegado en el puerto $POSTGRES1_PUERTO."
 
-# Ejecutar el segundo contenedor PostgreSQL
+# Ejecutar el segundo contenedor PostgreSQL con usuario específico
 docker run -d --name postgres2 \
     --network mi-red-postgres \
-    -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD \
-    -e POSTGRES_USER=$POSTGRES_USER \
-    -e POSTGRES_DB=$POSTGRES_DB \
+    -e POSTGRES_PASSWORD=$POSTGRES2_PASSWORD \
+    -e POSTGRES_USER=$POSTGRES2_USER \
+    -e POSTGRES_DB=$POSTGRES2_DB \
     -p $POSTGRES2_PUERTO:5432 \
     postgres:latest
 echo "Segundo contenedor PostgreSQL (postgres2) desplegado en el puerto $POSTGRES2_PUERTO."
@@ -141,35 +147,83 @@ sleep 15
 
 # Crear tabla de prueba en postgres1
 echo "Creando tabla de prueba en postgres1..."
-docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES_PASSWORD psql -U $POSTGRES_USER -d $POSTGRES_DB -c 'CREATE TABLE prueba (id serial PRIMARY KEY, nombre VARCHAR(50));'"
-docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES_PASSWORD psql -U $POSTGRES_USER -d $POSTGRES_DB -c \"INSERT INTO prueba (nombre) VALUES ('Datos de prueba desde postgres1');\""
+docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES1_PASSWORD psql -U $POSTGRES1_USER -d $POSTGRES1_DB -c 'CREATE TABLE prueba (id serial PRIMARY KEY, nombre VARCHAR(50));'"
+docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES1_PASSWORD psql -U $POSTGRES1_USER -d $POSTGRES1_DB -c \"INSERT INTO prueba (nombre) VALUES ('Datos de prueba desde postgres1');\""
 
 # Verificar que la tabla se creó correctamente
 echo "Verificando que la tabla se creó correctamente en postgres1:"
-docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES_PASSWORD psql -U $POSTGRES_USER -d $POSTGRES_DB -c 'SELECT * FROM prueba;'"
+docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES1_PASSWORD psql -U $POSTGRES1_USER -d $POSTGRES1_DB -c 'SELECT * FROM prueba;'"
+
+# Crear usuario en postgres1 para acceso remoto desde postgres2
+echo "Creando usuario en postgres1 para acceso remoto desde postgres2..."
+docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES1_PASSWORD psql -U $POSTGRES1_USER -d $POSTGRES1_DB -c \"CREATE USER remote_user WITH PASSWORD 'remote_pass';\""
+docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES1_PASSWORD psql -U $POSTGRES1_USER -d $POSTGRES1_DB -c \"GRANT ALL PRIVILEGES ON DATABASE $POSTGRES1_DB TO remote_user;\""
+docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES1_PASSWORD psql -U $POSTGRES1_USER -d $POSTGRES1_DB -c \"GRANT ALL PRIVILEGES ON TABLE prueba TO remote_user;\""
+
+# Modificar configuración de PostgreSQL para permitir conexiones remotas
+echo "Configurando postgres1 para permitir conexiones remotas..."
+docker exec -it postgres1 bash -c "echo \"host all all 0.0.0.0/0 md5\" >> /var/lib/postgresql/data/pg_hba.conf"
+docker exec -it postgres1 bash -c "echo \"listen_addresses = '*'\" >> /var/lib/postgresql/data/postgresql.conf"
+docker exec -it postgres1 bash -c "pg_ctl -D /var/lib/postgresql/data reload"
 
 # Instalar cliente PostgreSQL en postgres2 para conectarse a postgres1
 echo "Configurando postgres2 para conectarse a postgres1..."
 docker exec -it postgres2 bash -c "apt-get update && apt-get install -y postgresql-client"
 
-# Conectar desde postgres2 al postgres1
-echo "Verificando conexión desde postgres2 a postgres1:"
-docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres1 -U $POSTGRES_USER -d $POSTGRES_DB -c 'SELECT * FROM prueba;'"
+# Conectar desde postgres2 al postgres1 usando el nombre del contenedor como host
+echo "Verificando conexión desde postgres2 a postgres1 usando nombre del contenedor como host:"
+docker exec -it postgres2 bash -c "PGPASSWORD=remote_pass psql -h postgres1 -U remote_user -d $POSTGRES1_DB -c 'SELECT * FROM prueba;'"
 
 # Insertar datos desde postgres2 a postgres1
 echo "Insertando datos desde postgres2 a la tabla en postgres1:"
-docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES_PASSWORD psql -h postgres1 -U $POSTGRES_USER -d $POSTGRES_DB -c \"INSERT INTO prueba (nombre) VALUES ('Datos de prueba desde postgres2');\""
+docker exec -it postgres2 bash -c "PGPASSWORD=remote_pass psql -h postgres1 -U remote_user -d $POSTGRES1_DB -c \"INSERT INTO prueba (nombre) VALUES ('Datos insertados desde postgres2');\""
 
-# Verificar los datos insertados
-echo "Verificando todos los datos en la tabla:"
-docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES_PASSWORD psql -U $POSTGRES_USER -d $POSTGRES_DB -c 'SELECT * FROM prueba;'"
+# Crear tabla en postgres2
+echo "Creando tabla en postgres2..."
+docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c 'CREATE TABLE prueba_local (id serial PRIMARY KEY, nombre VARCHAR(50));'"
+docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c \"INSERT INTO prueba_local (nombre) VALUES ('Datos locales en postgres2');\""
+
+# Crear usuario en postgres2 para acceso remoto desde postgres1
+echo "Creando usuario en postgres2 para acceso remoto desde postgres1..."
+docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c \"CREATE USER remote_user2 WITH PASSWORD 'remote_pass2';\""
+docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c \"GRANT ALL PRIVILEGES ON DATABASE $POSTGRES2_DB TO remote_user2;\""
+docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c \"GRANT ALL PRIVILEGES ON TABLE prueba_local TO remote_user2;\""
+
+# Modificar configuración de PostgreSQL en postgres2 para permitir conexiones remotas
+echo "Configurando postgres2 para permitir conexiones remotas..."
+docker exec -it postgres2 bash -c "echo \"host all all 0.0.0.0/0 md5\" >> /var/lib/postgresql/data/pg_hba.conf"
+docker exec -it postgres2 bash -c "echo \"listen_addresses = '*'\" >> /var/lib/postgresql/data/postgresql.conf"
+docker exec -it postgres2 bash -c "pg_ctl -D /var/lib/postgresql/data reload"
+
+# Instalar cliente PostgreSQL en postgres1 (por si no está instalado)
+echo "Verificando que postgres1 tiene cliente PostgreSQL..."
+docker exec -it postgres1 bash -c "apt-get update && apt-get install -y postgresql-client"
+
+# Conectar desde postgres1 al postgres2 usando el nombre del contenedor como host
+echo "Verificando conexión desde postgres1 a postgres2 usando nombre del contenedor como host:"
+docker exec -it postgres1 bash -c "PGPASSWORD=remote_pass2 psql -h postgres2 -U remote_user2 -d $POSTGRES2_DB -c 'SELECT * FROM prueba_local;'"
+
+# Insertar datos desde postgres1 a postgres2
+echo "Insertando datos desde postgres1 a la tabla en postgres2:"
+docker exec -it postgres1 bash -c "PGPASSWORD=remote_pass2 psql -h postgres2 -U remote_user2 -d $POSTGRES2_DB -c \"INSERT INTO prueba_local (nombre) VALUES ('Datos insertados desde postgres1');\""
+
+# Verificar los datos insertados en ambas bases de datos
+echo "Verificando todos los datos en la tabla de postgres1:"
+docker exec -it postgres1 bash -c "PGPASSWORD=$POSTGRES1_PASSWORD psql -U $POSTGRES1_USER -d $POSTGRES1_DB -c 'SELECT * FROM prueba;'"
+
+echo "Verificando todos los datos en la tabla de postgres2:"
+docker exec -it postgres2 bash -c "PGPASSWORD=$POSTGRES2_PASSWORD psql -U $POSTGRES2_USER -d $POSTGRES2_DB -c 'SELECT * FROM prueba_local;'"
 
 echo ""
 echo "====== CONFIGURACIÓN COMPLETADA ======"
 echo "Apache estándar: http://localhost:$APACHE_PUERTO"
 echo "Apache personalizado: http://localhost:$APACHE_PERSONALIZADO_PUERTO"
-echo "PostgreSQL 1: localhost:$POSTGRES1_PUERTO (usuario: $POSTGRES_USER, contraseña: $POSTGRES_PASSWORD, BD: $POSTGRES_DB)"
-echo "PostgreSQL 2: localhost:$POSTGRES2_PUERTO (usuario: $POSTGRES_USER, contraseña: $POSTGRES_PASSWORD, BD: $POSTGRES_DB)"
+echo "PostgreSQL 1: localhost:$POSTGRES1_PUERTO (usuario: $POSTGRES1_USER, contraseña: $POSTGRES1_PASSWORD, BD: $POSTGRES1_DB)"
+echo "PostgreSQL 2: localhost:$POSTGRES2_PUERTO (usuario: $POSTGRES2_USER, contraseña: $POSTGRES2_PASSWORD, BD: $POSTGRES2_DB)"
+echo ""
+echo "Credenciales para conexión cruzada:"
+echo "- De postgres2 a postgres1: host: postgres1, usuario: remote_user, contraseña: remote_pass, BD: $POSTGRES1_DB"
+echo "- De postgres1 a postgres2: host: postgres2, usuario: remote_user2, contraseña: remote_pass2, BD: $POSTGRES2_DB"
 echo ""
 echo "Nota: Para utilizar Docker sin privilegios de superusuario, cierra sesión y vuelve a iniciar sesión"
 echo "o ejecuta 'newgrp docker' en tu terminal actual."
